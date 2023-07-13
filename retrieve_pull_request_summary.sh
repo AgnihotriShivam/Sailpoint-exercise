@@ -1,51 +1,35 @@
 #!/bin/bash
 
-# Prompt user for repository owner and name
-read -p "Enter the repository owner: " REPO_OWNER
-read -p "Enter the repository name: " REPO_NAME
+# Set the repository URL
+repo_url="https://github.com/octocat/Hello-World"
 
-# Date range for the last week
-START_DATE=$(date -d "1 week ago" +%Y-%m-%d)
-END_DATE=$(date +%Y-%m-%d)
+# Get the current time
+now=$(date +"%Y-%m-%dT%H:%M:%SZ")
 
-# GitHub API endpoint for pull requests
-API_URL="https://api.github.com/repos/$REPO_OWNER/$REPO_NAME/pulls?state=all&sort=created&direction=desc"
+# Get a list of all pull requests in the last week
+pull_requests=$(curl -s "https://api.github.com/repos/$repo_url/pulls?per_page=100&since=$now" | jq -r ".[] | {title, state, created_at}")
 
-# Fetch pull requests from the GitHub API
-pull_requests=$(curl -s -H "Authorization: token <GITHUB_TOKEN>" $API_URL)
+# Create an email summary report
+email_body="
+Hi [MANAGER/SCRUM-MASTER NAME],
 
-# Process pull requests
-opened=0
-closed=0
-in_progress=0
+Here is a summary of all pull requests in the last week for the repository [REPO_NAME]:
 
-for pr in $(echo "$pull_requests" | jq -r '.[] | @base64'); do
-  pr_info=$(echo "$pr" | base64 --decode)
-  
-  pr_created=$(echo "$pr_info" | jq -r '.created_at | sub("Z$"; "") | strptime("%Y-%m-%dT%H:%M:%S") | mktime')
-  if (( pr_created < $(date -d $START_DATE +%s) )); then
-    break
-  fi
-  
-  pr_state=$(echo "$pr_info" | jq -r '.state')
-  
-  if (( pr_created >= $(date -d $START_DATE +%s) )); then
-    case $pr_state in
-      "open")
-        ((opened++))
-        ;;
-      "closed")
-        ((closed++))
-        ;;
-    esac
-  else
-    ((in_progress++))
-  fi
-done
+* Opened:
+    * [TITLE] ([STATE]) - Created on [CREATED_AT]
+* Closed:
+    * [TITLE] ([STATE]) - Closed on [CREATED_AT]
+* In progress:
+    * [TITLE] ([STATE]) - Created on [CREATED_AT]
 
-# Print the summary
-echo "Pull Request Summary for $REPO_OWNER/$REPO_NAME"
-echo "--------------------------------------------------"
-echo "Opened: $opened"
-echo "Closed: $closed"
-echo "In Progress: $in_progress"
+Please let me know if you have any questions.
+
+Thanks,
+[YOUR NAME]
+"
+
+# Print the email summary report to the console
+echo $email_body
+
+# Send the email summary report
+#mail -s "[REPO_NAME] Pull Request Summary" [MANAGER/SCRUM-MASTER EMAIL] < $email_body
