@@ -1,35 +1,33 @@
 #!/bin/bash
 
-# Set the repository URL
-repo_url="https://github.com/octocat/Hello-World"
+# Read repository owner and name from user input
+read -p "Enter the repository owner: " REPO_OWNER
+read -p "Enter the repository name: " REPO_NAME
 
-# Get the current time
-now=$(date +"%Y-%m-%dT%H:%M:%SZ")
+# Make API request to retrieve pull requests
+response=$(curl -s "https://api.github.com/repos/$REPO_OWNER/$REPO_NAME/pulls")
+echo $response
 
-# Get a list of all pull requests in the last week
-pull_requests=$(curl -s "https://api.github.com/repos/$repo_url/pulls?per_page=100&since=$now" | jq -r ".[] | {title, state, created_at}")
+# Extract summary details from the API response
+pr_count=$(echo "$response" | jq length)
+echo "Pull Requests Summary for $REPO_OWNER/$REPO_NAME:"
+echo "---------------------------------------------"
+echo "Total Pull Requests: $pr_count"
 
-# Create an email summary report
-email_body="
-Hi [MANAGER/SCRUM-MASTER NAME],
+# Loop through the pull requests and print their details
+for ((i = 0; i < pr_count; i++)); do
+  pr_number=$(echo "$response" | jq -r ".[$i].number")
+  pr_title=$(echo "$response" | jq -r ".[$i].title")
+  pr_author=$(echo "$response" | jq -r ".[$i].user.login")
+  pr_state=$(echo "$response" | jq -r ".[$i].state")
+  pr_created=$(echo "$response" | jq -r ".[$i].created_at")
+  pr_updated=$(echo "$response" | jq -r ".[$i].updated_at")
 
-Here is a summary of all pull requests in the last week for the repository [REPO_NAME]:
-
-* Opened:
-    * [TITLE] ([STATE]) - Created on [CREATED_AT]
-* Closed:
-    * [TITLE] ([STATE]) - Closed on [CREATED_AT]
-* In progress:
-    * [TITLE] ([STATE]) - Created on [CREATED_AT]
-
-Please let me know if you have any questions.
-
-Thanks,
-[YOUR NAME]
-"
-
-# Print the email summary report to the console
-echo $email_body
-
-# Send the email summary report
-#mail -s "[REPO_NAME] Pull Request Summary" [MANAGER/SCRUM-MASTER EMAIL] < $email_body
+  echo
+  echo "Pull Request #$pr_number"
+  echo "Title: $pr_title"
+  echo "Author: $pr_author"
+  echo "State: $pr_state"
+  echo "Created: $pr_created"
+  echo "Updated: $pr_updated"
+done
