@@ -1,52 +1,33 @@
 #!/bin/bash
 
-# Prompt user for repository owner and name
+# Read repository owner and name from user input
 read -p "Enter the repository owner: " REPO_OWNER
 read -p "Enter the repository name: " REPO_NAME
 
-# Date range for the last week
-START_DATE=$(date -v -7d +%Y-%m-%d)
-END_DATE=$(date +%Y-%m-%d)
+# Make API request to retrieve pull requests
+response=$(curl -s "https://api.github.com/repos/$REPO_OWNER/$REPO_NAME/pulls")
+echo $response
 
-# GitHub API endpoint for pull requests
-API_URL="https://api.github.com/repos/$REPO_OWNER/$REPO_NAME/pulls?state=all&sort=created&direction=desc"
+# Extract summary details from the API response
+pr_count=$(echo "$response" | jq length)
+echo "Pull Requests Summary for $REPO_OWNER/$REPO_NAME:"
+echo "---------------------------------------------"
+echo "Total Pull Requests: $pr_count"
 
-# Fetch pull requests from the GitHub API
-pull_requests=$(curl -s -H "Authorization: token <GITHUB_TOKEN>" $API_URL)
+# Loop through the pull requests and print their details
+for ((i = 0; i < pr_count; i++)); do
+  pr_number=$(echo "$response" | jq -r ".[$i].number")
+  pr_title=$(echo "$response" | jq -r ".[$i].title")
+  pr_author=$(echo "$response" | jq -r ".[$i].user.login")
+  pr_state=$(echo "$response" | jq -r ".[$i].state")
+  pr_created=$(echo "$response" | jq -r ".[$i].created_at")
+  pr_updated=$(echo "$response" | jq -r ".[$i].updated_at")
 
-# Process pull requests
-opened=0
-closed=0
-in_progress=0
-
-for pr in $(echo "$pull_requests" | jq -r '.[] | @base64'); do
-  pr_info=$(echo "$pr" | base64 --decode)
-  
-  pr_created=$(echo "$pr_info" | jq -r '.created_at | strptime("%Y-%m-%dT%H:%M:%SZ") | mktime')
-  if (( pr_created < $(date -j -f "%Y-%m-%d" $START_DATE +%s) )); then
-    break
-  fi
-  
-  pr_state=$(echo "$pr_info" | jq -r '.state')
-  
-  if (( pr_created >= $(date -j -f "%Y-%m-%d" $START_DATE +%s) )); then
-    case $pr_state in
-      "open")
-        ((opened++))
-        ;;
-      "closed")
-        ((closed++))
-        ;;
-    esac
-  else
-    ((in_progress++))
-  fi
+  echo
+  echo "Pull Request #$pr_number"
+  echo "Title: $pr_title"
+  echo "Author: $pr_author"
+  echo "State: $pr_state"
+  echo "Created: $pr_created"
+  echo "Updated: $pr_updated"
 done
-
-# Print the summary
-echo "Pull Request Summary for $REPO_OWNER/$REPO_NAME"
-echo "--------------------------------------------------"
-echo "Opened: $opened"
-echo "Closed: $closed"
-echo "In Progress: $in_progress"
-
