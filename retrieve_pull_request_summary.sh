@@ -1,10 +1,10 @@
 #!/bin/bash
 
 #update the repository for package download
-apt-get update -y
+sudo apt-get update -y
 
 #Install the jq command to sort the response
-apt-get install jq -y
+sudo apt-get install jq -y
 
 # Read repository owner and name from user input
 read -p "Enter the repository owner: " REPO_OWNER
@@ -57,7 +57,7 @@ for ((i = 0; i < pr_count; i++)); do
   fi
 done
 
-echo "From: shivamagnihotri82@gmail.com"
+echo "\n\nFrom: shivamagnihotri82@gmail.com"
 echo "To: robert.wellman@sailpoint.com"
 echo "Subject: Pull request details in the last week"
 echo "Hello,\n\nHere is the summary of pull requests in the last week for the repository $REPO_NAME"
