@@ -1,35 +1,67 @@
 #!/bin/bash
 
-# Set the repository URL
-repo_url="https://github.com/octocat/Hello-World"
+#update the repository for package download
+sudo apt-get update -y
 
-# Get the current time
-now=$(date +"%Y-%m-%dT%H:%M:%SZ")
+#Install the jq command to sort the response
+sudo apt-get install jq -y
 
-# Get a list of all pull requests in the last week
-pull_requests=$(curl -s "https://api.github.com/repos/$repo_url/pulls?per_page=100&since=$now" | jq -r ".[] | {title, state, created_at}")
+# Read repository owner and name from user input
+read -p "Enter the repository owner: " REPO_OWNER
+read -p "Enter the repository name: " REPO_NAME
 
-# Create an email summary report
-email_body="
-Hi [MANAGER/SCRUM-MASTER NAME],
+# Calculate the date one week ago
+ONE_WEEK_AGO=$(date -d "7 days ago" +%Y-%m-%d)
 
-Here is a summary of all pull requests in the last week for the repository [REPO_NAME]:
+# Make API request to retrieve pull requests
+response=$(curl -s "https://api.github.com/repos/$REPO_OWNER/$REPO_NAME/pulls")
 
-* Opened:
-    * [TITLE] ([STATE]) - Created on [CREATED_AT]
-* Closed:
-    * [TITLE] ([STATE]) - Closed on [CREATED_AT]
-* In progress:
-    * [TITLE] ([STATE]) - Created on [CREATED_AT]
+echo $response > response.json
 
-Please let me know if you have any questions.
+# Filter pull requests created within the last week
+filtered_response=$(echo "$response" | jq --arg ONE_WEEK_AGO "$ONE_WEEK_AGO" '. | map(select(.created_at >= $ONE_WEEK_AGO))')
 
-Thanks,
-[YOUR NAME]
-"
+echo $filtered_response > filtered_response.json
 
-# Print the email summary report to the console
-echo $email_body
+# Extract summary details from the filtered API response
+pr_count=$(echo "$filtered_response" | jq length)
+closed_count=0
+in_progress_count=0
 
-# Send the email summary report
-#mail -s "[REPO_NAME] Pull Request Summary" [MANAGER/SCRUM-MASTER EMAIL] < $email_body
+echo "Pull Requests Summary for $REPO_OWNER/$REPO_NAME (Last Week):"
+echo "----------------------------------------------------------"
+echo "Total Pull Requests: $pr_count"
+
+# Loop through the filtered pull requests and print their details
+for ((i = 0; i < pr_count; i++)); do
+  pr_number=$(echo "$filtered_response" | jq -r ".[$i].number")
+  pr_title=$(echo "$filtered_response" | jq -r ".[$i].title")
+  pr_author=$(echo "$filtered_response" | jq -r ".[$i].user.login")
+  pr_state=$(echo "$filtered_response" | jq -r ".[$i].state")
+  pr_created=$(echo "$filtered_response" | jq -r ".[$i].created_at")
+  pr_updated=$(echo "$filtered_response" | jq -r ".[$i].updated_at")
+
+  echo
+  echo "Pull Request #$pr_number"
+  echo "Title: $pr_title"
+  echo "Author: $pr_author"
+  echo "State: $pr_state"
+  echo "Created: $pr_created"
+  echo "Updated: $pr_updated"
+
+  # Count closed and in-progress pull requests
+  if [[ "$pr_state" == "closed" ]]; then
+    ((closed_count++))
+  elif [[ "$pr_state" == "open" ]]; then
+    ((in_progress_count++))
+  fi
+done
+
+echo "\n\nFrom: shivamagnihotri82@gmail.com"
+echo "To: robert.wellman@sailpoint.com"
+echo "Subject: Pull request details in the last week"
+echo "Hello,\n\nHere is the summary of pull requests in the last week for the repository $REPO_NAME"
+echo "Summary:"
+echo "----------------------------------------------------------"
+echo "Closed Pull Requests: $closed_count"
+echo "Pull Requests In Progress: $in_progress_count"
