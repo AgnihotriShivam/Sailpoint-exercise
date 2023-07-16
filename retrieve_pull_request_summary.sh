@@ -33,3 +33,6 @@ echo $email_body
 
 # Send the email summary report
 #mail -s "[REPO_NAME] Pull Request Summary" [MANAGER/SCRUM-MASTER EMAIL] < $email_body
+
+#Sailpoint-exercise
+
