@@ -16,12 +16,12 @@ ONE_WEEK_AGO=$(date -d "7 days ago" +%Y-%m-%d)
 # Make API request to retrieve pull requests
 response=$(curl -s "https://api.github.com/repos/$REPO_OWNER/$REPO_NAME/pulls")
 
-echo $response > response.json
+# echo $response > response.json
 
 # Filter pull requests created within the last week
 filtered_response=$(echo "$response" | jq --arg ONE_WEEK_AGO "$ONE_WEEK_AGO" '. | map(select(.created_at >= $ONE_WEEK_AGO))')
 
-echo $filtered_response > filtered_response.json
+# echo $filtered_response > filtered_response.json
 
 # Extract summary details from the filtered API response
 pr_count=$(echo "$filtered_response" | jq length)
